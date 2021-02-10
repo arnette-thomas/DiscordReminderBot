@@ -2,6 +2,8 @@ import discord
 from datetime import datetime
 
 class Record:
+
+    # Constructor
     def __init__(self, user, date_str, channel):
         self.user = user
         self.emit_time = datetime.now()
@@ -11,9 +13,12 @@ class Record:
         if self.datetime < self.emit_time:
             raise Exception("Date is not in the future")
 
+
     def get_datetime_as_str(self):
         return self.datetime.strftime(r'%d/%m/%Y %H:%M:%S')
 
+
+    # From a datetime string, which can be unclean, returns a DateTime object
     def _parse_date_time(self, date_str):
         date_time_arr = date_str.split()
 
@@ -28,7 +33,7 @@ class Record:
 
         return self._str_to_datetime(self._clean_date(date_time_arr[0]), self._clean_time(date_time_arr[1]))
 
-
+    # Make a date string follow the right format
     def _clean_date(self, date_str):
         date_arr = date_str.strip().split('/')
         if len(date_arr) <= 2:
@@ -37,6 +42,7 @@ class Record:
             date_arr[2] = str(self.emit_time.year)[:2] + date_arr[2]
         return "{}/{}/{}".format(date_arr[0].zfill(2), date_arr[1].zfill(2), date_arr[2].zfill(4))
 
+    # Make a time string follow the right format
     def _clean_time(self, time_str):
         time_arr = time_str.strip().split(':')
 
@@ -45,5 +51,6 @@ class Record:
 
         return "{}:{}:{}".format(time_arr[0].zfill(2), time_arr[1].zfill(2), time_arr[2].zfill(2))
 
+    # Takes a date string and a time string, both cleaned, and returns a datetime object
     def _str_to_datetime(self, date, time):
         return datetime.strptime("{} {}".format(date, time), r'%d/%m/%Y %H:%M:%S')
