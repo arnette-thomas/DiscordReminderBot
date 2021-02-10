@@ -1,5 +1,4 @@
-from bot import Bot
-from record import Record
+from modules.bot import Bot
 
 def main():
     bot = Bot()

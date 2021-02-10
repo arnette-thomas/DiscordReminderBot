@@ -1,5 +1,4 @@
 import discord
-import re
 from datetime import datetime
 
 class Record:

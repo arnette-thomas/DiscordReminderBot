@@ -1,8 +1,9 @@
+from modules.record import Record
+
 import os
 import discord
 from discord.ext.tasks import loop
 from dotenv import load_dotenv
-from record import Record
 from datetime import datetime
 
 class Bot:
