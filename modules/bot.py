@@ -73,9 +73,9 @@ class Bot:
         help_str = """
 ** Reminder Bot **
 
-*Syntax : * `$rm [date] [time] [description]
+*Syntax :* `$rm [date]-[time] [description]
 
-*Parameters : *
+*Parameters :*
 __date and time__ --- Mandatory --- Indicates the datetime for the reminder. Format : dd/mm/yyyy-HH:MM:SS
                                     If date is empty, current day will be considered.
                                     If time is empty, current time will be considered.
