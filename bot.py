@@ -50,21 +50,19 @@ class Bot:
                     self.reminders.append(rec)
                     self.reminders.sort(key=lambda r : r.datetime)
 
-                    await message.channel.send('Reminder set to {} !'.format(rec.get_datetime_as_str()))
+                    await message.channel.send('{0.mention} - Reminder set to {1} !'.format(rec.user, rec.get_datetime_as_str()))
 
                 except Exception as ex:
                     await message.channel.send('***Error : {}***'.format(ex))
-                await message.channel.send('Hello!')
     
     @loop(seconds=5)
     async def _bg_check_reminders(self):
         now = datetime.now()
-        print("loop")
         while len(self.reminders) > 0:
             reminder = self.reminders[0]
             if reminder.datetime > now:
                 break
-            await reminder.channel.send('BIP')
+            await reminder.channel.send('{0.mention} - You have a reminder ! '.format(reminder.user))
             self.reminders.remove(reminder)
 
     @_bg_check_reminders.before_loop
