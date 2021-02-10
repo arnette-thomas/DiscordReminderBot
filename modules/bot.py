@@ -48,44 +48,102 @@ class Bot:
                 print('Message received')
 
                 # Get args
-                args = message.content.strip().split(' ', 2)
+                args = message.content.strip().split(' ', 3)
 
                 if len(args) < 2:
                     await self._send_help(message)
                     return
                 
-                try:
+                command = args[1].strip()
 
-                    rec = Record(message.author, args[1], message.channel)
-                    if len(args) >= 3:
-                        rec.set_description(args[2])
-                
-                    self.reminders.append(rec)
-                    self.reminders.sort(key=lambda r : r.datetime)
+                ## Add a reminder
+                if command == 'add':
+                    try:
+                        if len(args) < 3:
+                            await self._send_help(message)
+                            return
 
-                    await message.channel.send('{0.mention} - Reminder set to {1} !'.format(rec.user, rec.get_datetime_as_str()))
+                        rec = Record(message.author, args[2], message.channel)
+                        if len(args) >= 4:
+                            rec.set_description(args[3])
+                    
+                        self.reminders.append(rec)
+                        self.reminders.sort(key=lambda r : r.datetime)
 
-                except Exception as ex:
-                    await message.channel.send('***Error : {}***'.format(ex))
+                        await message.channel.send('{0.mention} - Reminder set to {1} !'.format(rec.user, rec.get_datetime_as_str()))
+
+                    except Exception as ex:
+                        await message.channel.send('***Error : {}***'.format(ex))
+
+                ## List all user reminders
+                elif command == 'ls':
+                    user_rems = self._get_reminders_for_user(message.author)
+                    to_send = "Your reminders : \n"
+
+                    for i, rem in enumerate(user_rems):
+                        to_send += '\n> {} - {} - {}'.format(i, rem.datetime, rem.description)
+                    
+                    await message.channel.send(to_send)
+
+                elif command == 'del':
+                    if len(args) < 3:
+                        await self._send_help(message)
+                        return
+
+                    param = args[2].strip()
+                    rems = self._get_reminders_for_user(message.author)
+                    if (param == "all"):
+                        for rem in rems:
+                            self.reminders.remove(rem)
+                        await message.channel.send('All reminders have been deleted.')
+                    else:
+                        try:
+                            self.reminders.remove(rems[int(param)])
+                        except Exception:
+                            await message.channel.send('***Error : invalid id***')
+                            return
+                        await message.channel.send('Reminder {} has been deleted.'.format(param))
+
+                else:
+                    await self._send_help(message)
+                    return
 
     async def _send_help(self, msg):
         channel = msg.channel
         help_str = """
-** Reminder Bot **
+** Add a reminder **
 
-*Syntax :* `$rm [date]-[time] [description]
+__Syntax :__ `$rm add [date]-[time] [description]`
 
-*Parameters :*
-__date and time__ --- Mandatory --- Indicates the datetime for the reminder. Format : dd/mm/yyyy-HH:MM:SS
+__Parameters :__
+*date and time* --- Mandatory --- Indicates the datetime for the reminder. Format : dd/mm/yyyy-HH:MM:SS
                                     If date is empty, current day will be considered.
                                     If time is empty, current time will be considered.
                                     Minutes and seconds can be ommitted
                                     examples : 18/01/2021-10:34:45 | 18/01/2021 | 10:34 
 
-__description__   --- Optional  --- Inidcates the text to display when reminder is triggered
+*description*   --- Optional  --- Inidcates the text to display when reminder is triggered
+
+
+** List your reminders **
+
+__Syntax :__ `$rm ls`
+
+
+** Remove a reminder **
+
+__Syntax :__ `$rm del [id]`
+             `$rm del all`
+
+
+__Parameters :__
+*id* --- Remove reminder with this id. Use `$rm ls` to list ids
         """
 
         await channel.send(help_str)
+
+    def _get_reminders_for_user(self, user):
+        return [rem for rem in self.reminders if rem.user == user]
     
     @loop(seconds=5)
     async def _bg_check_reminders(self):
