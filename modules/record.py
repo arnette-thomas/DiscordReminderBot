@@ -9,18 +9,22 @@ class Record:
         self.emit_time = datetime.now()
         self.datetime = self._parse_date_time(date_str.strip())
         self.channel = channel
+        self.description = ''
 
         if self.datetime < self.emit_time:
             raise Exception("Date is not in the future")
 
 
     def get_datetime_as_str(self):
-        return self.datetime.strftime(r'%d/%m/%Y %H:%M:%S')
+        return self.datetime.strftime(r'%d/%m/%Y-%H:%M:%S')
+
+    def set_description(self, desc):
+        self.description = desc
 
 
     # From a datetime string, which can be unclean, returns a DateTime object
     def _parse_date_time(self, date_str):
-        date_time_arr = date_str.split()
+        date_time_arr = date_str.strip().split('-')
 
         # If we have only one element, determine if it is a date or a time
         if len(date_time_arr) < 2:
@@ -53,4 +57,4 @@ class Record:
 
     # Takes a date string and a time string, both cleaned, and returns a datetime object
     def _str_to_datetime(self, date, time):
-        return datetime.strptime("{} {}".format(date, time), r'%d/%m/%Y %H:%M:%S')
+        return datetime.strptime("{}-{}".format(date, time), r'%d/%m/%Y-%H:%M:%S')
