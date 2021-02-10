@@ -85,6 +85,7 @@ class Bot:
                     
                     await message.channel.send(to_send)
 
+                # Remove reminder(s)
                 elif command == 'del':
                     if len(args) < 3:
                         await self._send_help(message)

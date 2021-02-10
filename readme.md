@@ -8,9 +8,14 @@ To use it, put a command in a text channel. Commands start with the `$rm` prefix
 
 Examples : 
 ```
-$rm 30/1/2021 20:30:45
-$rm 20:30
-$rm 30/1/2021
+$rm add 30/1/2021 20:30:45
+$rm add 20:30
+$rm add 30/1/2021
+```
+
+To get help, use the prefix without parameter : 
+```
+$rm
 ```
 
 ## Install
