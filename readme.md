@@ -22,4 +22,6 @@ $rm
 Clone the repository. Then copy the `.env.dist` file as `.env`, and fill variables : 
 ```
 BOT_TOKEN=insert_here_your_bot_secret_token
+UTC_OFFSET=insert_offset_with_utc_time_in_hours
 ```
+`UTC_OFFSET` parameter can be removed. In that case, the system's timezone will be used.

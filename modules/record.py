@@ -1,12 +1,13 @@
 import discord
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 class Record:
 
     # Constructor
-    def __init__(self, user, date_str, channel):
+    def __init__(self, user, date_str, channel, tz=None):
         self.user = user
-        self.emit_time = datetime.now()
+        self.tz = tz
+        self.emit_time = datetime.now(tz)
         self.datetime = self._parse_date_time(date_str.strip())
         self.channel = channel
         self.description = ''
@@ -33,7 +34,10 @@ class Record:
                 return self._str_to_datetime(self._clean_date(date_str), time)
 
             date = self.emit_time.date().strftime(r"%d/%m/%Y")
-            return self._str_to_datetime(date, self._clean_time(date_str))
+            to_return = self._str_to_datetime(date, self._clean_time(date_str))
+            if (to_return < self.emit_time):
+                to_return += timedelta(days=1)
+            return to_return
 
         return self._str_to_datetime(self._clean_date(date_time_arr[0]), self._clean_time(date_time_arr[1]))
 
@@ -57,4 +61,5 @@ class Record:
 
     # Takes a date string and a time string, both cleaned, and returns a datetime object
     def _str_to_datetime(self, date, time):
-        return datetime.strptime("{}-{}".format(date, time), r'%d/%m/%Y-%H:%M:%S')
+        to_return = datetime.strptime("{}-{}".format(date, time), r'%d/%m/%Y-%H:%M:%S')
+        return datetime(to_return.year, to_return.month, to_return.day, to_return.hour, to_return.minute, to_return.second, 0, self.tz)

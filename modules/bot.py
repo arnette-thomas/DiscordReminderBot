@@ -4,7 +4,7 @@ import os
 import discord
 from discord.ext.tasks import loop
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 class Bot:
 
@@ -15,6 +15,9 @@ class Bot:
 
         if not token:
             raise Exception("ERROR : no token found in .env file. Create a .env file with BOT_TOKEN variable")
+
+        utc_offset_str = os.getenv("UTC_OFFSET")
+        self.timezone = timezone(timedelta(hours=float(utc_offset_str))) if utc_offset_str else None
 
         self.token = token
 
@@ -63,7 +66,7 @@ class Bot:
                             await self._send_help(message)
                             return
 
-                        rec = Record(message.author, args[2], message.channel)
+                        rec = Record(message.author, args[2], message.channel, self.timezone)
                         if len(args) >= 4:
                             rec.set_description(args[3])
                     
@@ -148,7 +151,8 @@ __Parameters :__
     
     @loop(seconds=5)
     async def _bg_check_reminders(self):
-        now = datetime.now()
+        # Get current datetime
+        now = datetime.now(self.timezone)
 
         while len(self.reminders) > 0:
             reminder = self.reminders[0]
