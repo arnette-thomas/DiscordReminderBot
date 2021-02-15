@@ -6,9 +6,7 @@ from discord.ext.tasks import loop
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 
-import google_auth_oauthlib.flow
 import googleapiclient.discovery
-import googleapiclient.errors
 
 class Bot:
 
@@ -146,6 +144,7 @@ class Bot:
                 else :
                     self.channelId = args[2]
                     self.channel = message.channel
+                    message.channel.send('Bien compris !')
                     self.getYoutubeChannelLastVideo.start()
                 return
 
