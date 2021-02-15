@@ -1,4 +1,5 @@
 from modules.bot import Bot
+import sqlite3 as sql
 
 def main():
     bot = Bot()

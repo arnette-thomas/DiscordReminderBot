@@ -5,6 +5,8 @@ import discord
 from discord.ext.tasks import loop
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
+import sqlite3 as sql
+import traceback
 
 import googleapiclient.discovery
 
@@ -27,8 +29,6 @@ class Bot:
 
         self._setup_events()
 
-        self.reminders = []
-
         scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
 
         # *DO NOT* leave this option enabled in production.
@@ -43,6 +43,11 @@ class Bot:
         print('Log into your Google Account to let the bot perform Youtube queries')
         self.youtube = googleapiclient.discovery.build(
             api_service_name, api_version, developerKey=api_key)
+
+        # Database
+        conn = self._get_conn()
+        conn.execute("CREATE TABLE IF NOT EXISTS reminders(id INTEGER PRIMARY KEY, emit_time TIMESTAMP, user_id INTEGER, channel_id INTEGER, datetime TIMESTAMP, description TEXT)")
+        conn.close()
 
         # self.client.bg_task = self.client.loop.create_task(self._bg_check_reminders())
 
@@ -84,25 +89,27 @@ class Bot:
                             await self._send_reminder_help(message)
                             return
 
-                        rec = Record(message.author, args[2], message.channel, self.timezone)
+                        rec = Record(message.author, args[2], message.channel, self.timezone, False, True)
                         if len(args) >= 4:
                             rec.set_description(args[3])
-                    
-                        self.reminders.append(rec)
-                        self.reminders.sort(key=lambda r : r.datetime)
+
+                        conn = self._get_conn()
+                        rec.save(conn)
+                        conn.close()
 
                         await message.channel.send('{0.mention} - Reminder set to {1} !'.format(rec.user, rec.get_datetime_as_str()))
 
                     except Exception as ex:
                         await message.channel.send('***Error : {}***'.format(ex))
+                        traceback.print_exc()
 
                 ## List all user reminders
                 elif command == 'ls':
-                    user_rems = self._get_reminders_for_user(message.author)
+                    user_rems = await self._get_reminders_for_user(message.author)
                     to_send = "Your reminders : \n"
 
                     for i, rem in enumerate(user_rems):
-                        to_send += '\n> {} - {} - {}'.format(i, rem.datetime, rem.description)
+                        to_send += '\n> {} - {} - {}'.format(i, rem.get_datetime_as_str(), rem.description)
                     
                     await message.channel.send(to_send)
 
@@ -113,14 +120,20 @@ class Bot:
                         return
 
                     param = args[2].strip()
-                    rems = self._get_reminders_for_user(message.author)
                     if (param == "all"):
-                        for rem in rems:
-                            self.reminders.remove(rem)
+                        conn = self._get_conn()
+                        conn.execute("DELETE FROM reminders WHERE user_id = ?", (message.author.id,))
+                        conn.commit()
+                        conn.close()
                         await message.channel.send('All reminders have been deleted.')
                     else:
+                        rems = await self._get_reminders_for_user(message.author)
                         try:
-                            self.reminders.remove(rems[int(param)])
+                            rem_id = rems[int(param)].db_id
+                            conn = self._get_conn()
+                            conn.execute("DELETE FROM reminders WHERE user_id = ? AND id = ?", (message.author.id, rem_id))
+                            conn.commit()
+                            conn.close()
                         except Exception:
                             await message.channel.send('***Error : invalid id***')
                             return
@@ -144,7 +157,7 @@ class Bot:
                 else :
                     self.channelId = args[2]
                     self.channel = message.channel
-                    await message.channel.send('Bien compris !')
+                    await message.channel.send('Understood !')
                     self.getYoutubeChannelLastVideo.start()
                 return
 
@@ -182,27 +195,48 @@ __Parameters :__
 
         await channel.send(help_str)
 
-    def _get_reminders_for_user(self, user):
-        return [rem for rem in self.reminders if rem.user == user]
+    async def _get_reminders_for_user(self, user):
+        conn = self._get_conn()
+        c = conn.cursor()
+        c.execute("SELECT emit_time, user_id, channel_id, datetime, description, id FROM reminders WHERE user_id = ? ORDER BY datetime", (user.id,))
+        to_return = []
+        for res in c:
+            r = Record(await self.client.fetch_user(res[1]), res[3], self.client.get_channel(res[2]), self.timezone)
+            r.set_db_id(res[5])
+            if res[4] != '' :
+                r.set_description(res[4])
+            to_return.append(r)
+        conn.close()
+        return to_return
+
     
     @loop(seconds=5)
     async def _bg_check_reminders(self):
         # Get current datetime
-        now = datetime.now(self.timezone)
+        now = datetime.utcnow()
 
-        while len(self.reminders) > 0:
-            reminder = self.reminders[0]
-
-            if reminder.datetime > now:
+        conn = self._get_conn()
+        c = conn.cursor()
+        c.execute("SELECT id, user_id, datetime, description, channel_id FROM reminders ORDER BY datetime")
+        for res in c:
+            if res[2] > now:
                 break
 
+            reminder = Record(await self.client.fetch_user(res[1]), res[2], self.client.get_channel(res[4]), self.timezone)
+            
+            reminder.set_description(res[3])
             to_send = '{0.mention} - You have a reminder ! '.format(reminder.user)
+
             if reminder.description != '':
                 to_send += "\n \n {}".format(reminder.description)
 
             await reminder.channel.send(to_send)
 
-            self.reminders.remove(reminder)
+            c2 = conn.cursor()
+            c2.execute("DELETE FROM reminders WHERE id = ?", (res[0],))
+            conn.commit()
+        
+        conn.close()
 
     @_bg_check_reminders.before_loop
     async def _bg_before_check_reminders(self):
@@ -272,6 +306,9 @@ __Parameters :__
     __Syntax :__ `$ytb listen del`
                 """
         await channel.send(help_str)
+
+    def _get_conn(self):
+        return sql.connect('bot.db', detect_types=sql.PARSE_DECLTYPES)
 
     
     # Called to run server

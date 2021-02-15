@@ -1,27 +1,40 @@
 import discord
+import pytz
 from datetime import datetime, timedelta, timezone
+from modules.saved_data import ISavedData
 
-class Record:
+class Record(ISavedData):
 
     # Constructor
-    def __init__(self, user, date_str, channel, tz=None):
+    def __init__(self, user, date, channel, tz=None, is_datetime_parsed=True, must_be_future=False):
         self.user = user
         self.tz = tz
-        self.emit_time = datetime.now(tz)
-        self.datetime = self._parse_date_time(date_str.strip())
+        self.emit_time = datetime.utcnow()
+
+        if not is_datetime_parsed:
+            self.datetime = self._parse_date_time(date.strip())
+        else:
+            self.datetime = date
+
         self.channel = channel
         self.description = ''
 
-        if self.datetime < self.emit_time:
+        if must_be_future and self.datetime < self.emit_time:
             raise Exception("Date is not in the future")
 
 
     def get_datetime_as_str(self):
-        return self.datetime.strftime(r'%d/%m/%Y-%H:%M:%S')
+        return (self.datetime.replace(tzinfo=pytz.utc).astimezone(self.tz)).strftime(r'%d/%m/%Y-%H:%M:%S')
 
     def set_description(self, desc):
         self.description = desc
 
+    def set_db_id(self, id):
+        self.db_id = id
+
+    def save(self, connection):
+        connection.execute("INSERT INTO reminders(emit_time, user_id, channel_id, datetime, description) VALUES (?,?,?,?,?)", (self.emit_time, self.user.id, self.channel.id, self.datetime, self.description))
+        connection.commit()
 
     # From a datetime string, which can be unclean, returns a DateTime object
     def _parse_date_time(self, date_str):
@@ -62,4 +75,4 @@ class Record:
     # Takes a date string and a time string, both cleaned, and returns a datetime object
     def _str_to_datetime(self, date, time):
         to_return = datetime.strptime("{}-{}".format(date, time), r'%d/%m/%Y-%H:%M:%S')
-        return datetime(to_return.year, to_return.month, to_return.day, to_return.hour, to_return.minute, to_return.second, 0, self.tz)
+        return datetime(to_return.year, to_return.month, to_return.day, to_return.hour, to_return.minute, to_return.second, 0, self.tz).astimezone(pytz.utc).replace(tzinfo=None)
