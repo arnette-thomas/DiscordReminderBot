@@ -38,16 +38,13 @@ class Bot:
 
         api_service_name = "youtube"
         api_version = "v3"
-        client_secrets_file = "code_secret_client_947094708812-dpm1uenisn35ga6m294m4p7nsldu4g0g.apps.googleusercontent.com.json"
+        api_key = os.getenv("API_TOKEN")
 
 
         # Get credentials and create an API client
         print('Log into your Google Account to let the bot perform Youtube queries')
-        self.flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-            client_secrets_file, scopes)
-        self.credentials = self.flow.run_console()
         self.youtube = googleapiclient.discovery.build(
-            api_service_name, api_version, credentials=self.credentials)
+            api_service_name, api_version, developerKey=api_key)
 
         # self.client.bg_task = self.client.loop.create_task(self._bg_check_reminders())
 
