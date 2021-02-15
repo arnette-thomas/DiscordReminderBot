@@ -6,6 +6,10 @@ from discord.ext.tasks import loop
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
+import googleapiclient.errors
+
 class Bot:
 
     # Constructor
@@ -26,6 +30,24 @@ class Bot:
         self._setup_events()
 
         self.reminders = []
+
+        scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
+
+        # *DO NOT* leave this option enabled in production.
+        os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+        api_service_name = "youtube"
+        api_version = "v3"
+        client_secrets_file = "code_secret_client_947094708812-dpm1uenisn35ga6m294m4p7nsldu4g0g.apps.googleusercontent.com.json"
+
+
+        # Get credentials and create an API client
+        print('Log into your Google Account to let the bot perform Youtube queries')
+        self.flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+            client_secrets_file, scopes)
+        self.credentials = self.flow.run_console()
+        self.youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, credentials=self.credentials)
 
         # self.client.bg_task = self.client.loop.create_task(self._bg_check_reminders())
 
@@ -49,12 +71,13 @@ class Bot:
 
             if message.content.startswith('$rm'):
                 print('Message received')
+                print(message.content)
 
                 # Get args
                 args = message.content.strip().split(' ', 3)
 
                 if len(args) < 2:
-                    await self._send_help(message)
+                    await self._send_reminder_help(message)
                     return
                 
                 command = args[1].strip()
@@ -63,7 +86,7 @@ class Bot:
                 if command == 'add':
                     try:
                         if len(args) < 3:
-                            await self._send_help(message)
+                            await self._send_reminder_help(message)
                             return
 
                         rec = Record(message.author, args[2], message.channel, self.timezone)
@@ -91,7 +114,7 @@ class Bot:
                 # Remove reminder(s)
                 elif command == 'del':
                     if len(args) < 3:
-                        await self._send_help(message)
+                        await self._send_reminder_help(message)
                         return
 
                     param = args[2].strip()
@@ -109,10 +132,27 @@ class Bot:
                         await message.channel.send('Reminder {} has been deleted.'.format(param))
 
                 else:
-                    await self._send_help(message)
+                    await self._send_reminder_help(message)
                     return
+            elif message.content.startswith('$ytb listen'):
+                print('Message received')
+                print(message.content)
 
-    async def _send_help(self, msg):
+                 # Get args
+                args = message.content.strip().split(' ', 3)
+
+                if len(args) != 3:
+                    await self._send_ytb_list_help(message)
+                    return
+                elif (args[2].strip() == 'del' ):
+                    self.getYoutubeChannelLastVideo.stop()
+                else :
+                    self.channelId = args[2]
+                    self.channel = message.channel
+                    self.getYoutubeChannelLastVideo.start()
+                return
+
+    async def _send_reminder_help(self, msg):
         channel = msg.channel
         help_str = """
 ** Add a reminder **
@@ -171,6 +211,71 @@ __Parameters :__
     @_bg_check_reminders.before_loop
     async def _bg_before_check_reminders(self):
         await self.client.wait_until_ready()
+
+    @loop(seconds=60)
+    async def getYoutubeChannelLastVideo(self):
+
+        request = self.youtube.activities().list(
+            part="snippet",
+            channelId=self.channelId,
+            maxResults=1
+        )
+        response = request.execute()
+        video = response['items'][0]['snippet']
+
+        title = video['title']
+        thumbnailUrl = video['thumbnails']['maxres']['url']
+
+        # Get current datetime
+        now = datetime.now(self.timezone)
+
+        dateString = video['publishedAt']
+
+        date = datetime.fromisoformat(dateString).replace(tzinfo=self.timezone).astimezone(tz=None)
+
+        nowDateTimeWithoutSeconds = datetime(
+            now.date().year,
+            now.date().month,
+            now.date().day,
+            now.time().hour,
+            now.time().minute,
+            0
+        )
+
+        videoDateTimeWithoutSeconds = datetime(
+            date.date().year,
+            date.date().month,
+            date.date().day,
+            date.time().hour,
+            date.time().minute,
+            0
+        )
+
+        if (nowDateTimeWithoutSeconds == videoDateTimeWithoutSeconds) :
+            await self.channel.send('(' + str(nowDateTimeWithoutSeconds.time().hour) + ':' + str(nowDateTimeWithoutSeconds.time().minute) + ') ' + title)
+            await self.channel.send(thumbnailUrl)
+        else :
+            await self.channel.send('(' + str(nowDateTimeWithoutSeconds.time().hour) + ':' + str(nowDateTimeWithoutSeconds.time().minute) + ') rien...')
+    
+    async def _send_ytb_list_help(self, msg):
+        channel = msg.channel
+        help_str = """
+    For now, there can only be one listener at the time.
+    Setting another listener just update the current listener discord channel reference and youtube channel reference.
+
+    ** Add a listener **
+
+    __Syntax :__ `$ytb listen [youtubeChannelId]`
+
+    __Parameters :__
+    *youtubeChannelId* --- Mandatory --- Reference the youtube channel you want the bot to listen to.
+                                        You can easily find it following this url https://commentpicker.com/youtube-channel-id.php
+
+    ** Remove a listener **
+
+    __Syntax :__ `$ytb listen del`
+                """
+        await channel.send(help_str)
 
     
     # Called to run server
