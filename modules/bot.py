@@ -144,7 +144,7 @@ class Bot:
                 else :
                     self.channelId = args[2]
                     self.channel = message.channel
-                    message.channel.send('Bien compris !')
+                    await message.channel.send('Bien compris !')
                     self.getYoutubeChannelLastVideo.start()
                 return
 
@@ -250,8 +250,8 @@ __Parameters :__
         if (nowDateTimeWithoutSeconds == videoDateTimeWithoutSeconds) :
             await self.channel.send('(' + str(nowDateTimeWithoutSeconds.time().hour) + ':' + str(nowDateTimeWithoutSeconds.time().minute) + ') ' + title)
             await self.channel.send(thumbnailUrl)
-        else :
-            await self.channel.send('(' + str(nowDateTimeWithoutSeconds.time().hour) + ':' + str(nowDateTimeWithoutSeconds.time().minute) + ') rien...')
+        # else :
+        #     await self.channel.send('(' + str(nowDateTimeWithoutSeconds.time().hour) + ':' + str(nowDateTimeWithoutSeconds.time().minute) + ') rien...')
     
     async def _send_ytb_list_help(self, msg):
         channel = msg.channel
